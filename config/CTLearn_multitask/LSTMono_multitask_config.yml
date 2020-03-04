@@ -1,7 +1,7 @@
 Logging:
-    model_directory: '/home/tjark/multitask/Test'
+    model_directory: '/home/tjark/deeplearning/Testtf2'
 Data:
-    file_list: '/home/tjark/multitask/LST_mono_training.txt'
+    file_list: '/home/tjark/deeplearning/LST_mono_training_balanced.txt'
     mode: 'mono'
     selected_telescope_type: 'LST_LSTCam'
     shuffle: true
@@ -24,33 +24,33 @@ Data:
     event_info:
         - 'shower_primary_id'
         - 'mc_energy'
-        - 'alt'
-        - 'az'
-        - 'core_x'
-        - 'core_y'
-        - 'x_max'
+#        - 'alt'
+#        - 'az'
+#        - 'core_x'
+#        - 'core_y'
+#        - 'x_max'
     transforms:
         - name: 'ShowerPrimaryIDToParticleType'
         - name: 'MCEnergyToEnergyInLog'
-        - name: 'AltAzToDirection'
-        - name: 'CoreXYToImpactInKm'
-        - name: 'XmaxToShowerMaximumInKm'
+#        - name: 'AltAzToDirection'
+#        - name: 'CoreXYToImpactInKm'
+#        - name: 'XmaxToShowerMaximumInKm'
 Input:
     seed: 1234
     batch_size: 64
     shuffle_buffer_size: 10000
     prefetch_buffer_size: 2
 Model:
-    model_directory: '/home/tjark/multitask/ctlearn/ctlearn/default_models/'
+    model_directory: '/home/tjark/deeplearning/ctlearn/ctlearn/default_models/'
     model: {module: 'single_tel', function: 'single_tel_model'}
     label_names:
         particletype:
             - 'proton'
             - 'gamma'
         energy: null
-        direction: null
-        impact: null
-        showermaximum: null
+#        direction: null
+#        impact: null
+#        showermaximum: null
 Model Parameters:
     single_tel:
         network: {module: 'basic', function: 'conv_block'}
@@ -94,7 +94,7 @@ Model Parameters:
         batchnorm_decay: 0.99
 Training:
     validation_split: 0.1
-    num_validations: 20
+    num_validations: 5
     num_training_steps_per_validation: 2500
     optimizer: 'Adam'
     adam_epsilon: 1.0e-8

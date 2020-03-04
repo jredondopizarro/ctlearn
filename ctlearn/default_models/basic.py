@@ -1,47 +1,44 @@
 import tensorflow as tf
 
-def conv_block(inputs, training, params, reuse=None):
+def conv_block(x, training, params):
 
-    with tf.variable_scope("Basic_conv_block", reuse=reuse):
+    # Get standard hyperparameters
+    bn_momentum = params.get('batchnorm_decay', 0.99)
+    # Get custom hyperparameters
+    filters_list = [layer['filters'] for layer in
+            params['basic']['conv_block']['layers']]
+    kernel_sizes = [layer['kernel_size'] for layer in
+            params['basic']['conv_block']['layers']]
+    max_pool = params['basic']['conv_block']['max_pool']
+    bottleneck_filters = params['basic']['conv_block']['bottleneck']
+    batchnorm = params['basic']['conv_block'].get('batchnorm', False)
 
-        # Get standard hyperparameters
-        bn_momentum = params.get('batchnorm_decay', 0.99)
-        # Get custom hyperparameters
-        filters_list = [layer['filters'] for layer in
-                params['basic']['conv_block']['layers']]
-        kernel_sizes = [layer['kernel_size'] for layer in
-                params['basic']['conv_block']['layers']]
-        max_pool = params['basic']['conv_block']['max_pool']
-        bottleneck_filters = params['basic']['conv_block']['bottleneck']
-        batchnorm = params['basic']['conv_block'].get('batchnorm', False)
-        
-        x = inputs
-        if batchnorm:
-            x = tf.layers.batch_normalization(x, momentum=bn_momentum,
-                    training=training)
+    if batchnorm:
+        x = tf.keras.layers.BatchNormalization(momentum=bn_momentum,
+                        trainable=training)(x)
 
-        for i, (filters, kernel_size) in enumerate(
+    for i, (filters, kernel_size) in enumerate(
                 zip(filters_list, kernel_sizes)):
-            x = tf.layers.conv2d(x, filters=filters, kernel_size=kernel_size,
-                    activation=tf.nn.relu, padding="same", reuse=reuse,
-                    name="conv_{}".format(i+1))
-            if max_pool:
-                x = tf.layers.max_pooling2d(x, pool_size=max_pool['size'],
-                        strides=max_pool['strides'], name="pool_{}".format(i+1))
-            if batchnorm:
-                x = tf.layers.batch_normalization(x, momentum=bn_momentum,
-                        training=training)
+        x = tf.keras.layers.Conv2D(filters=filters, kernel_size=kernel_size,
+                        activation=tf.nn.relu, padding="same",
+                        name="conv_{}".format(i+1))(x)
+        
+        if max_pool:
+             x = tf.keras.layers.MaxPool2D(pool_size=max_pool['size'],
+                    strides=max_pool['strides'], name="pool_{}".format(i+1))(x)
+        if batchnorm:
+             x = tf.keras.layers.BatchNormalization(momentum=bn_momentum,
+                    trainable=training)(x)
 
-        # bottleneck layer
-        if bottleneck_filters:
-            x = tf.layers.conv2d(x, filters=bottleneck_filters,
-                    kernel_size=1, activation=tf.nn.relu, padding="same",
-                    reuse=reuse, name="bottleneck")
-            if batchnorm:
-                x = tf.layers.batch_normalization(x, momentum=bn_momentum,
-                        training=training)
+    # bottleneck layer
+    if bottleneck_filters:
+        x = tf.keras.layers.Conv2D(filters=bottleneck_filters,
+                kernel_size=1, activation=tf.nn.relu, padding="same", name="bottleneck")(x)
+        if batchnorm:
+             x = tf.keras.layers.BatchNormalization(momentum=bn_momentum,
+                    trainable=training)(x)
 
-        return x
+    return x
 
 def fc_head(inputs, training, params):
 
@@ -52,13 +49,13 @@ def fc_head(inputs, training, params):
     layers = params['basic']['fc_head']['layers']
     batchnorm = params['basic']['fc_head'].get('batchnorm', False)
 
-    x = tf.layers.flatten(inputs)
+    x = tf.keras.layers.flatten(inputs)
 
     for i, units in enumerate(layers):
-        x = tf.layers.dense(x, units=units, activation=tf.nn.relu,
+        x = tf.keras.layers.dense(x, units=units, activation=tf.nn.relu,
                 name="fc_{}".format(i+1))
         if batchnorm:
-            x = tf.layers.batch_normalization(x, momentum=bn_momentum,
+            x = tf.keras.layers.batch_normalization(x, momentum=bn_momentum,
                     training=training)
 
     return x
@@ -79,19 +76,19 @@ def conv_head(inputs, training, params):
     x = inputs
 
     for i, (filters, kernel_size) in enumerate(zip(filters_list, kernel_sizes)):
-        x = tf.layers.conv2d(x, filters=filters, kernel_size=kernel_size,
+        x = tf.keras.layers.conv2d(x, filters=filters, kernel_size=kernel_size,
                 activation=tf.nn.relu, padding="same",
                 name="conv_{}".format(i+1))
         if batchnorm:
-            x = tf.layers.batch_normalization(x, momentum=bn_momentum,
+            x = tf.keras.layers.batch_normalization(x, momentum=bn_momentum,
                     training=training)
 
     # Average over remaining width and length
     if final_avg_pool:
-        x = tf.layers.average_pooling2d(x,
+        x = tf.keras.layers.average_pooling2d(x,
                 pool_size=x.get_shape().as_list()[1],
                 strides=1, name="global_avg_pool")
     
-    flat = tf.layers.flatten(x)
+    flat = tf.keras.layers.flatten(x)
     
     return flat

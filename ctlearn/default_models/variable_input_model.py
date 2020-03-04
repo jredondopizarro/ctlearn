@@ -23,7 +23,7 @@ def combine_telescopes_as_vectors(telescope_outputs, telescope_aux_inputs,
     combined_telescope_triggers = []
     for i, telescope_features in enumerate(telescope_outputs):
         # Flatten output features to get feature vectors
-        combined_telescope_features.append(tf.layers.flatten(telescope_features))
+        combined_telescope_features.append(tf.keras.layers.flatten(telescope_features))
         combined_telescope_aux_inputs.append(telescope_aux_inputs[:, i, :])
         combined_telescope_triggers.append(tf.expand_dims(telescope_triggers[:, i], 1))
 

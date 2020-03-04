@@ -149,10 +149,12 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
     logger.info("For a large dataset, this may take a while...")
     reader = DL1DataReader(**config['Data'])
     params['example_description'] = reader.example_description
-
+    #print(type(reader[0]))
+    #print(reader[0].shape)
     # Define format for TensorFlow dataset
     if 'Input' not in config:
         config['Input'] = {}
+    #config['Input']['output_names'] = ['image']
     config['Input']['output_names'] = [d['name'] for d
                                        in reader.example_description]
     # TensorFlow does not support conversion for NumPy unsigned dtypes
@@ -214,10 +216,10 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
     run_tfdbg = config.get('TensorFlow', {}).get('run_TFDBG', False)
 
     # Define input function for TF Estimator
+    #@tf.function
     def input_fn(reader, indices, output_names, output_dtypes, output_shapes,
                  label_names, mode='train', seed=None, batch_size=1,
-                 shuffle_buffer_size=None, prefetch_buffer_size=1,
-                 add_labels_to_features=False):
+                 shuffle_buffer_size=None, prefetch_buffer_size=1):
 
         def generator(indices):
             for idx in indices:
@@ -238,15 +240,25 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
         iterator = dataset.make_one_shot_iterator()
 
         # Return a batch of features and labels
+        #example = next(iter(dataset))
+
         example = iterator.get_next()
 
         features, labels = {}, {}
+        #print(output_names)
         for tensor, name in zip(example, output_names):
-            dic = labels if name in label_names else features
-            dic[name] = tensor
+            #print(tensor)
+            #print(name)
+            #dic = labels if name in label_names else features
+            #dic[name] = tensor
+            if name == 'image':
+                features[name] = tensor
+            else:
+                labels[name] = tensor
         if mode == 'predict':
             labels = {}
-
+        print(features)
+        print(labels)
         return features, labels
 
     # Define model function with model, mode (train/predict),
@@ -256,10 +268,10 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
     
         training = True if mode == tf.estimator.ModeKeys.TRAIN else False
 
-        multihead_array, logits = model(features, params['model'], params['example_description'], training)
-        
+        mod, multihead_array, logits = model(features, params['model'], params['example_description'], training)
+
         # Combine the several heads in the multi_head class
-        multi_head = tf.contrib.estimator.multi_head(multihead_array)
+        multi_head = tf.estimator.MultiHead(multihead_array)
         
         # Scale the learning rate so batches with fewer triggered
         # telescopes don't have smaller gradients
@@ -282,21 +294,23 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
             # Select optimizer with appropriate arguments
             # Dict of optimizer_name: (optimizer_fn, optimizer_args)
             optimizers = {
-                'Adadelta': (tf.train.AdadeltaOptimizer,
+                'Adadelta': (tf.keras.optimizers.Adadelta,
                              dict(learning_rate=learning_rate)),
-                'Adam': (tf.train.AdamOptimizer,
+                'Adam': (tf.keras.optimizers.Adam,
                          dict(learning_rate=learning_rate,
                          epsilon=training_params['adam_epsilon'])),
-                'RMSProp': (tf.train.RMSPropOptimizer,
+                'RMSProp': (tf.keras.optimizers.RMSprop,
                             dict(learning_rate=learning_rate)),
-                'SGD': (tf.train.GradientDescentOptimizer,
+                'SGD': (tf.keras.optimizers.SGD,
                         dict(learning_rate=learning_rate))
                 }
 
             optimizer_fn, optimizer_args = optimizers[training_params['optimizer']]
             optimizer = optimizer_fn(**optimizer_args)
 
-        return multi_head.create_estimator_spec(features=features, mode=mode, logits=logits, labels=labels, optimizer=optimizer)
+        #return multi_head.create_estimator_spec(features=features, mode=mode, logits=logits, labels=labels, optimizer=optimizer)
+
+        return multi_head.create_estimator_spec(features=features, mode=mode, logits=logits, labels=labels, trainable_variables=mod.weights, update_ops=mod.updates, optimizer=optimizer)
     
     estimator = tf.estimator.Estimator(
         model_fn,
@@ -319,6 +333,7 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
         train_forever = False if num_validations != 0 else True
         num_validations_remaining = num_validations
         while train_forever or num_validations_remaining:
+            print(steps)
             epoch = num_validations-num_validations_remaining+1
             estimator.train(
                 lambda: input_fn(reader, training_indices, mode='train', **config['Input']),
@@ -343,7 +358,7 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
                 else:
                     final_eval_file = os.path.abspath(os.path.join(os.path.dirname(__file__), model_dir+"/experiment.h5"))
                 write_output(h5file=final_eval_file, reader=reader, indices=validation_indices, example_description=params['example_description'], predictions=evaluation)
-
+            
             if not train_forever:
                 num_validations_remaining -= 1
 

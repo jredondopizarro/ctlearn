@@ -1,0 +1,13 @@
+# conda env create -f environment.yml
+#name: ctlearn
+channels:
+    - anaconda
+dependencies:
+    - python=3.7
+    - matplotlib
+    - numpy
+    - pandas
+    - pip
+    - pyyaml
+    - scikit-learn
+    - tensorflow
