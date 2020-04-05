@@ -23,7 +23,7 @@ def combine_telescopes_as_vectors(telescope_outputs, telescope_aux_inputs,
     combined_telescope_triggers = []
     for i, telescope_features in enumerate(telescope_outputs):
         # Flatten output features to get feature vectors
-        combined_telescope_features.append(tf.layers.flatten(telescope_features))
+        combined_telescope_features.append(tf.keras.layers.flatten(telescope_features))
         combined_telescope_aux_inputs.append(telescope_aux_inputs[:, i, :])
         combined_telescope_triggers.append(tf.expand_dims(telescope_triggers[:, i], 1))
 
@@ -85,6 +85,8 @@ def variable_input_model(features, model_params, example_description, training):
                                       [-1, num_telescopes,
                                        len(telescope_aux_inputs)],
                                       name='telescope_aux_inputs')
+
+    num_classes = len(model_params['label_names']['class_label'])
     
     # Split data by telescope by switching the batch and telescope dimensions
     # leaving width, length, and channel depth unchanged
@@ -156,8 +158,7 @@ def variable_input_model(features, model_params, example_description, training):
     logits = {}
     multihead_array = []
     for task in model_params['label_names']:
-        if task == 'particletype':
-            num_classes = len(model_params['label_names']['particletype'])
+        if num_classes != 2 and task == 'particletype':
             multihead_array.append(model_params['multitask_heads'][task](out, logits, num_classes))
         else:
             multihead_array.append(model_params['multitask_heads'][task](out, logits))

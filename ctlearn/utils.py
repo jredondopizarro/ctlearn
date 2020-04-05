@@ -8,6 +8,8 @@ import pandas as pd
 import time
 import yaml
 
+import tensorflow as tf
+
 def setup_logging(config, log_dir, debug, log_to_file):
 
     # Log configuration to a text file in the log dir
@@ -55,14 +57,6 @@ def compute_class_weights(labels, num_class_examples):
             break
     logger.info("Class weights: {}".format(class_weights))
     return class_weights
-
-def load_from_module(name, module, path=None, args=None):
-    if path is not None and path not in sys.path:
-        sys.path.append(path)
-    mod = importlib.import_module(module)
-    fn = getattr(mod, name)
-    params = args if args is not None else {}
-    return fn, params
 
 def log_examples(reader, indices, labels, subset_name):
     logger = logging.getLogger()

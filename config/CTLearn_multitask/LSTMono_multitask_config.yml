@@ -1,7 +1,8 @@
 Logging:
-    model_directory: '/home/tjark/multitask/Test'
+    model_directory: '/home/tjark/deeplearning/test/'
 Data:
-    file_list: '/home/tjark/multitask/LST_mono_training.txt'
+    #file_list: '/home/tjark/deeplearning/ctlearn_test.txt'
+    file_list: '/home/tjark/deeplearning/LST_mono_training_balanced.txt'
     mode: 'mono'
     selected_telescope_type: 'LST_LSTCam'
     shuffle: true
@@ -21,39 +22,46 @@ Data:
             'CHEC': 0
             'VERITAS': 1
         mask_interpolation: false
+    #image_selection:
+         #image_intensity_filter_after_cleaning(reader, images, i_min=-np.inf, i_max=np.inf, **opts)
+         #-
+         #   name: 'image_intensity_filter_after_cleaning'
+         #   args: {i_min: 3884.0,picture_thresh: 6, boundary_thresh: 3, keep_isolated_pixels: False, min_number_picture_neighbors: 2}
+#        -
+#            name: 'leakage_filter'
+#            args: {leakage_value: 0.2, leakage_number: 2, picture_thresh: 6, boundary_thresh: 3, keep_isolated_pixels: False, min_number_picture_neighbors: 2}
     event_info:
         - 'shower_primary_id'
-        - 'mc_energy'
-        - 'alt'
-        - 'az'
-        - 'core_x'
-        - 'core_y'
-        - 'x_max'
+#        - 'mc_energy'
+#        - 'alt'
+#        - 'az'
+#        - 'core_x'
+#        - 'core_y'
+#        - 'x_max'
     transforms:
         - name: 'ShowerPrimaryIDToParticleType'
-        - name: 'MCEnergyToEnergyInLog'
-        - name: 'AltAzToDirection'
-        - name: 'CoreXYToImpactInKm'
-        - name: 'XmaxToShowerMaximumInKm'
+#        - name: 'MCEnergyToEnergyInLog'
+#        - name: 'AltAzToDirection'
+#        - name: 'CoreXYToImpactInKm'
+#        - name: 'XmaxToShowerMaximumInKm'
 Input:
     seed: 1234
     batch_size: 64
     shuffle_buffer_size: 10000
     prefetch_buffer_size: 2
 Model:
-    model_directory: '/home/tjark/multitask/ctlearn/ctlearn/default_models/'
+#    model_file: /home/tjark/deeplearning/ctlearn_test_test_test/ctlearn_model.h5
+    model_directory: '/home/tjark/deeplearning/ctlearn/ctlearn/default_models/'
     model: {module: 'single_tel', function: 'single_tel_model'}
-    label_names:
-        particletype:
-            - 'proton'
-            - 'gamma'
-        energy: null
-        direction: null
-        impact: null
-        showermaximum: null
+    task:
+        particletype: {class_names: ['proton', 'gamma'], fc_head: [2], loss: 'binary_crossentropy', weight: 1.0}
+#        energy: {fc_head: [1], loss: 'mse', weight: 1.0, metric: 'mse'}
+#        direction: {fc_head: [2], loss: 'mse', weight: 1.0, metric: 'mse'}
+#        impact: {fc_head: [2], loss: 'mse', weight: 1.0, metric: 'mse'}
+#        showermaximum: {fc_head: [1], loss: 'mse', weight: 1.0, metric: 'mse'}
 Model Parameters:
     single_tel:
-        network: {module: 'basic', function: 'conv_block'}
+        cnn_block: {module: 'basic', function: 'conv_block'}
         pretrained_weights: null
         mode: 'hard'
     cnn_rnn:
@@ -61,10 +69,10 @@ Model Parameters:
         pretrained_weights: null
         dropout_rate: 0.5
     gammaPhysNet:
-        network: {module: 'basic', function: 'conv_block'}
+        cnn_block: {module: 'basic', function: 'conv_block'}
         pretrained_weights: null
     gammaPhysNet2:
-        network: {module: 'basic', function: 'conv_block'}
+        cnn_block: {module: 'basic', function: 'conv_block'}
         pretrained_weights: null
     variable_input_model:
         cnn_block: {module: 'basic', function: 'conv_block'}
@@ -94,7 +102,7 @@ Model Parameters:
         batchnorm_decay: 0.99
 Training:
     validation_split: 0.1
-    num_validations: 20
+    num_validations: 15
     num_training_steps_per_validation: 2500
     optimizer: 'Adam'
     adam_epsilon: 1.0e-8

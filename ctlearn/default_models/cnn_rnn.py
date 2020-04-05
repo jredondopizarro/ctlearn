@@ -17,6 +17,8 @@ def cnn_rnn_model(features, model_params, example_description, training):
             num_telescopes = d['shape'][0]
         if name == 'trigger':
             telescope_triggers = tf.cast(f, tf.float32)
+
+    num_classes = len(model_params['label_names']['particletype'])
     
     # Transpose telescope_data from [batch_size,num_tel,length,width,channels]
     # to [num_tel,batch_size,length,width,channels].
@@ -54,8 +56,8 @@ def cnn_rnn_model(features, model_params, example_description, training):
             tf.contrib.framework.init_from_checkpoint(model_params['cnn_rnn']['pretrained_weights'],{'CNN_block/':'CNN_block/'})
 
         #flatten output of embedding CNN to (batch_size, _)
-        image_embedding = tf.layers.flatten(output, name='image_embedding')
-        image_embedding_dropout = tf.layers.dropout(image_embedding, training=training)
+        image_embedding = tf.keras.layers.flatten(output, name='image_embedding')
+        image_embedding_dropout = tf.keras.layers.dropout(image_embedding, training=training)
         telescope_outputs.append(image_embedding_dropout)
 
     with tf.variable_scope("NetworkHead"):
@@ -65,8 +67,8 @@ def cnn_rnn_model(features, model_params, example_description, training):
 
         #implement attention mechanism with range num_tel (covering all timesteps)
         #define LSTM cell size
-        rnn_cell = tf.nn.rnn_cell.LSTMCell(LSTM_SIZE) 
-        outputs, _  = tf.nn.dynamic_rnn(
+        rnn_cell = tf.keras.layers.LSTMCell(LSTM_SIZE) 
+        outputs, _  = tf.keras.layers.rnn(
                             rnn_cell,
                             embeddings,
                             dtype=tf.float32,
@@ -74,23 +76,22 @@ def cnn_rnn_model(features, model_params, example_description, training):
                             sequence_length=num_tels_triggered)
 
         # (batch_size, max_num_tel * LSTM_SIZE)
-        outputs = tf.layers.flatten(outputs)
-        output_dropout = tf.layers.dropout(outputs, rate=dropout_rate,
+        outputs = tf.keras.layers.flatten(outputs)
+        output_dropout = tf.keras.layers.dropout(outputs, rate=dropout_rate,
                 training=training, name="rnn_output_dropout")
         
         fc1 = tf.layers.dense(inputs=output_dropout, units=1024, kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=0.004), name="fc1")
-        dropout_1 = tf.layers.dropout(inputs=fc1, rate=dropout_rate,
+        dropout_1 = tf.keras.layers.dropout(inputs=fc1, rate=dropout_rate,
                 training=training)
         
-        fc2 = tf.layers.dense(inputs=dropout_1, units=512, kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=0.004), name="fc2")
-        dropout_2 = tf.layers.dropout(inputs=fc2, rate=dropout_rate,
+        fc2 = tf.keras.layers.dense(inputs=dropout_1, units=512, kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=0.004), name="fc2")
+        dropout_2 = tf.keras.layers.dropout(inputs=fc2, rate=dropout_rate,
                 training=training)
         
         logits = {}
         multihead_array = []
         for task in model_params['label_names']:
-            if task == 'particletype':
-                num_classes = len(model_params['label_names']['particletype'])
+            if num_classes != 2 and task == 'particletype':
                 multihead_array.append(model_params['multitask_heads'][task](dropout_2, logits, num_classes))
             else:
                 multihead_array.append(model_params['multitask_heads'][task](dropout_2, logits))
