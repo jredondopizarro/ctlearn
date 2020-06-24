@@ -6,6 +6,7 @@ from random import randint
 import os
 from pprint import pformat
 import sys
+from functools import partial
 
 import numpy as np
 import yaml
@@ -14,10 +15,8 @@ import tensorflow as tf
 from tensorflow.python import debug as tf_debug
 
 from dl1_data_handler.reader import DL1DataReader
-from ctlearn.default_models.basic import fc_head
-from ctlearn.ct_losses import *
+from ctlearn.default_models.ctlearn_model import build_model
 from ctlearn.data_loader import *
-from ctlearn.output_handler import *
 from ctlearn.utils import *
 
 # Disable Tensorflow info and warning messages (not error messages)
@@ -53,6 +52,7 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
     # Create params dictionary that will be passed to the model_fn
     params = {}
 
+    '''
     # Load options to specify the model
     try:
         model_directory = config['Model']['model_directory']
@@ -66,7 +66,9 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
     model = getattr(model_module, config['Model']['model']['function'])
     
     params['model'] = {**config['Model'], **config.get('Model Parameters', {})}
-    tasks = config['Model']['tasks']
+    '''
+    
+    tasks = config['Model Parameters']['custom_head']
 
     # Set up the DL1DataReader
     config['Data'] = setup_DL1DataReader(config, mode)
@@ -80,7 +82,7 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
     # Set up the TensorFlow dataset
     if 'Input' not in config:
         config['Input'] = {}
-    config['Input'] = setup_TFdataset_format(config, params['example_description'], tasks)
+    config['Input'], feature_shapes = setup_TFdataset_format(config, params['example_description'], tasks)
     batch_size = config['Input'].get('batch_size', 1)
     config['Training']['batch_size'] = batch_size
     logger.info("Batch size: {}".format(batch_size))
@@ -140,171 +142,54 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
     # Load options for TensorFlow
     run_tfdbg = config.get('TensorFlow', {}).get('run_TFDBG', False)
 
-    # Define model function with model, mode (train/predict),
-    # metrics, optimizer, learning rate, etc.
-    # to pass into TF Estimator
-    def model_fn(features, labels, mode, params):
-    
-        training = True if mode == tf.estimator.ModeKeys.TRAIN else False
-        training_params = params['training']
-
-        output = model(features, params['model'], params['example_description'], training)
-        
-        # TODO: Handle all models properly
-        if params['model']['model']['function'] == 'single_tel_model':
-            output_flattened = tf.layers.flatten(output)
-            output_globalpooled = tf.reduce_mean(output, axis=[1,2])
-        
-        task_losses, logits = {}, {}
-        tasks_dict = params['model']['tasks']
-        for task in tasks_dict:
-            tasks_dict[task].update({'name': task})
-            if task == 'particletype':
-                if params['model']['model']['function'] == 'single_tel_model':
-                    output = output_flattened
-                expected_logits_dimension = len(tasks_dict[task]['class_names'])
-                logit = fc_head(output, tasks_dict[task], expected_logits_dimension)
-                logits['particletype_probabilities'] = tf.nn.softmax(logit)
-                logits[task] = tf.cast(tf.argmax(logits['particletype_probabilities'], axis=1),
-                                            tf.int32, name="predicted_classes")
-                if training:
-                    task_losses[task] = classification_loss(labels[task], logits['particletype_probabilities'], training_params)
-            else:
-                if params['model']['model']['function'] == 'single_tel_model':
-                    output = output_globalpooled if task == 'energy' else output_flattened
-                expected_logits_dimension = 2 if task in ['direction', 'impact'] else 1
-                logits[task] = fc_head(output, tasks_dict[task], expected_logits_dimension)
-                if training:
-                    if len(labels[task].get_shape().as_list()) == 1:
-                        labels[task] = tf.expand_dims(labels[task], 1)
-                    if 'particletype' in tasks_dict:
-                        task_losses[task] = regression_loss(tasks_dict[task]['loss'], labels[task], logits[task], training_params, labels['particletype'])
-                    else:
-                        task_losses[task] = regression_loss(tasks_dict[task]['loss'], labels[task], logits[task], training_params)
-
-        final_loss, optimizer, train_op = None, None, None
-        if training:
-            logits = None
-            # Combine the losses
-            losses = []
-            for task in tasks_dict:
-                loss = task_losses[task] if tasks_dict[task]['weight'] == 1.0 else tf.math.multiply(task_losses[task], tasks_dict[task]['weight'])
-                losses.append(loss)
-            merged_loss = tf.math.add_n(losses)
-            # add regularization loss
-            regularization_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-            final_loss = tf.add_n([merged_loss] + regularization_losses)
+    model_file = config['Model'].get('model_file', None)
+    if model_file:
+        model = tf.keras.models.load_model(model_file)
+    else:
+        # Load options to specify the model
+        try:
+            model_directory = config['Model']['model_directory']
+            if model_directory is None:
+                raise KeyError
+        except KeyError:
+            model_directory = os.path.abspath(os.path.join(
+                os.path.dirname(__file__), "default_models/"))
+        sys.path.append(model_directory)
+        if 'ctlearn_model.h5' in np.array([os.listdir(model_dir)]):
+            model = tf.keras.models.load_model(model_dir+'/ctlearn_model.h5')
+        else:
             
-            # Scale the learning rate so batches with fewer triggered
-            # telescopes don't have smaller gradients
-            # Only apply learning rate scaling for array-level models
-            if (training_params['scale_learning_rate'] and params['model']['function'] in ['cnn_rnn_model', 'variable_input_model']):
-                trigger_rate = tf.reduce_mean(tf.cast(
-                                features['telescope_triggers'], tf.float32),
-                                name="trigger_rate")
-                trigger_rate = tf.maximum(trigger_rate, 0.1) # Avoid division by 0
-                scaling_factor = tf.reciprocal(trigger_rate, name="scaling_factor")
-                learning_rate = tf.multiply(scaling_factor,
-                                            training_params['base_learning_rate'],
-                                            name="learning_rate")
-            else:
-                learning_rate = training_params['base_learning_rate']
-        
-            # Select optimizer with appropriate arguments
-            # Dict of optimizer_name: (optimizer_fn, optimizer_args)
-            optimizers = {
-                'Adadelta': (tf.train.AdadeltaOptimizer,
-                             dict(learning_rate=learning_rate)),
-                'Adam': (tf.train.AdamOptimizer,
-                         dict(learning_rate=learning_rate,
-                         epsilon=training_params['adam_epsilon'])),
-                'RMSProp': (tf.train.RMSPropOptimizer,
-                            dict(learning_rate=learning_rate)),
-                'SGD': (tf.train.GradientDescentOptimizer,
-                        dict(learning_rate=learning_rate))
-                }
-
-            optimizer_fn, optimizer_args = optimizers[training_params['optimizer']]
-            optimizer = optimizer_fn(**optimizer_args)
-
-            var_list = None
-            if training_params['variables_to_train'] is not None:
-                var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
-                                             training_params['variables_to_train'])
-
-            # Define train op with update ops dependency for batch norm
-            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-            with tf.control_dependencies(update_ops):
-                train_op = optimizer.minimize(
-                    final_loss,
-                    global_step=tf.train.get_global_step(),
-                    var_list=var_list)
-                    
-        return tf.estimator.EstimatorSpec(
-            mode=mode,
-            predictions=logits,
-            loss=final_loss,
-            train_op=train_op)
-        
-    estimator = tf.estimator.Estimator(
-        model_fn,
-        model_dir=model_dir,
-        params=params)
-
-    hooks = None
-    # Activate Tensorflow debugger if appropriate option set
-    if run_tfdbg:
-        if not isinstance(hooks, list):
-            hooks = []
-        hooks.append(tf_debug.LocalCLIDebugHook())
-
+            params['model'] = {**config['Model'], **config.get('Model Parameters', {}), **config.get('Training', {}), **config.get('Losses', {})}
+            
+            model_module = importlib.import_module(config['Model']['model']['module'])
+            model_fn = getattr(model_module, config['Model']['model']['function'])
+            # Write the model parameters in the params dictionary
+            
+            model = model_fn(feature_shapes, params['model'])
+            
+            #print(model.summary())
+            #print("Trainable variables:")
+            #print(model.trainable_variables)
+            
     if mode == 'train':
 
-        # Train and evaluate the model
-        logger.info("Training and evaluating...")
-        num_validations = config['Training'].get('num_validations', 0)
-        train_forever = False if num_validations != 0 else True
-        num_validations_remaining = num_validations
-        while train_forever or num_validations_remaining:
-            estimator.train(
-                lambda: input_fn(reader, training_indices, mode='train', **config['Input']),
-                steps=training_steps, hooks=hooks)
-            if params['evaluation']['default']:
-                logger.info("Evaluate with the default TensorFlow evaluation...")
-                estimator.evaluate(
-                    lambda: input_fn(reader, validation_indices, mode='eval', **config['Input']),
-                    hooks=hooks, name='validation')
-
-            if params['evaluation']['custom']['save_intermediate']:
-                validation_step = num_validations-num_validations_remaining+previous_steps
-                logger.info("Evaluate intermediate step {} with the custom CTLearn evaluation...".format(validation_step))
-                evaluations = list(estimator.predict(
-                    lambda: input_fn(reader, validation_indices, mode='predict', **config['Input']),
-                    hooks=hooks))
-                    
-                write_output(h5file=output_file, data=mc_data, predictions=evaluations, step=validation_step)
-
-            if not train_forever:
-                num_validations_remaining -= 1
+        training_data = input_fn(reader, training_indices, mode='train', **config['Input'])
+        validation_data = input_fn(reader, validation_indices, mode='eval', **config['Input'])
         
-        if params['evaluation']['custom']['save_final']:
-            logger.info("Evaluate the final step with the custom CTLearn evaluation...")
-            evaluations = list(estimator.predict(
-                lambda: input_fn(reader, validation_indices, mode='predict', **config['Input']),
-                hooks=hooks))
-                
-            write_output(h5file=output_file, data=mc_data, predictions=evaluations)
-       
+        model.fit(training_data, epochs=params['training']['num_epochs'], validation_data=validation_data)
+        model.save(model_dir+'/ctlearn_model.h5')
+        
     elif mode == 'predict':
 
-        # Generate predictions and add to output
-        logger.info("Predicting...")
-        predictions = list(estimator.predict(
-            lambda: input_fn(reader, indices, mode='predict', **config['Input']),
-            hooks=hooks))
-            
-        write_output(h5file=output_file, data=mc_data, predictions=predictions, step=-1, prediction_label=config['Prediction']['prediction_label'])
+        prediction_data = input_fn(reader, indices, mode='predict', **config['Input'])
         
+        predictions = model.predict(prediction_data)
+
+        print(evaluations)
+        print(type(evaluations))
+        print(evaluations.shape)
+    
+    
     # clear the handlers, shutdown the logging and delete the logger
     logger.handlers.clear()
     logging.shutdown()
@@ -373,3 +258,4 @@ if __name__ == "__main__":
                 config['Data']['shuffle'] = False
                 config['Prediction']['prediction_label'] = key
                 run_model(config, mode='predict', debug=args.debug, log_to_file=args.log_to_file, multiple_runs=args.multiple_runs)
+

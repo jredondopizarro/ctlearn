@@ -94,10 +94,10 @@ def load_from_module(name, module, path=None, args=None):
     return fn, params
 
 # Define format for TensorFlow dataset
-def setup_TFdataset_format(config, example_description, labels):
+def setup_TFdataset_format(config, example_description, tasks):
 
-    config['Input']['output_names'] = [d['name'] for d
-                                       in example_description]
+    config['Input']['output_names'] = names = [d['name'] for d in example_description]
+    shapes = [tf.TensorShape(d['shape']) for d in example_description]
     # TensorFlow does not support conversion for NumPy unsigned dtypes
     # other than int8. Work around this by doing a manual conversion.
     dtypes = [d['dtype'] for d in example_description]
@@ -105,23 +105,42 @@ def setup_TFdataset_format(config, example_description, labels):
         for utype, stype in [(np.uint16, np.int32), (np.uint32, np.int64)]:
             if dtype == utype:
                 dtypes[i] = stype
-    config['Input']['output_dtypes'] = tuple(tf.as_dtype(d) for d in dtypes)
-    config['Input']['output_shapes'] = tuple(tf.TensorShape(d['shape']) for d
-                                             in example_description)
-    config['Input']['label_names'] = config['Model']['tasks']
+    dtypes = [tf.as_dtype(d) for d in dtypes]
+    feature_names, label_names = [], []
+    feature_dtypes, label_dtypes, feature_shapes, label_shapes = {}, {}, {}, {}
+    for i, (name, dtype, shape) in enumerate(zip(names, dtypes, shapes)):
+        if name == 'image' or name == 'trigger':
+            feature_names.append(name)
+            feature_dtypes[name] = dtype
+            feature_shapes[name] = shape
+        if name in tasks.keys():
+            label_names.append(name)
+            label_dtypes[name] = dtype
+            label_shapes[name] = shape
 
-    return config['Input']
+    config['Input']['feature_names'] = feature_names
+    config['Input']['label_names'] = label_names
+    config['Input']['output_dtypes'] = (feature_dtypes, label_dtypes)
+    config['Input']['output_shapes'] = (feature_shapes, label_shapes)
+
+    if 'trigger' in feature_shapes:
+        feature_shapes['num_telescopes'] = feature_shapes['trigger'][0]
+
+    return config['Input'], feature_shapes
 
 # Define input function for TF Estimator
 def input_fn(reader, indices, output_names, output_dtypes, output_shapes,
-             label_names, mode='train', seed=None, batch_size=1,
+             feature_names, label_names, mode='train', seed=None, batch_size=1,
              shuffle_buffer_size=None, prefetch_buffer_size=1,
              add_labels_to_features=False):
-
+    
     def generator(indices):
         for idx in indices:
-            yield tuple(reader[idx])
-
+            #yield reader[idx]
+            #yield (map(lambda fpos: reader[idx][fpos], feature_positions), map(lambda lpos: reader[idx][lpos], label_positions))
+            [features, labels] = map(lambda keys: {name: reader[idx][i] for i,name in enumerate(output_names) if name in keys}, [feature_names, label_names])
+            yield (features, labels)
+            
     dataset = tf.data.Dataset.from_generator(generator, output_dtypes,
                                              output_shapes=output_shapes,
                                              args=(indices,))
@@ -133,20 +152,8 @@ def input_fn(reader, indices, output_names, output_dtypes, output_shapes,
         dataset = dataset.shuffle(buffer_size=shuffle_buffer_size, seed=seed)
     dataset = dataset.batch(batch_size)
     dataset = dataset.prefetch(prefetch_buffer_size)
-
-    iterator = dataset.make_one_shot_iterator()
-
-    # Return a batch of features and labels
-    example = iterator.get_next()
-
-    features, labels = {}, {}
-    for tensor, name in zip(example, output_names):
-        dic = labels if name in label_names else features
-        dic[name] = tensor
-    if mode == 'predict':
-        labels = {}
-
-    return features, labels
+    
+    return dataset
 
 def get_mc_data(reader, indices, example_description):
     mc_data = {}
