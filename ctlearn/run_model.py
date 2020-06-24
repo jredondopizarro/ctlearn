@@ -51,22 +51,6 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
 
     # Create params dictionary that will be passed to the model_fn
     params = {}
-
-    '''
-    # Load options to specify the model
-    try:
-        model_directory = config['Model']['model_directory']
-        if model_directory is None:
-            raise KeyError
-    except KeyError:
-        model_directory = os.path.abspath(os.path.join(
-            os.path.dirname(__file__), "default_models/"))
-    sys.path.append(model_directory)
-    model_module = importlib.import_module(config['Model']['model']['module'])
-    model = getattr(model_module, config['Model']['model']['function'])
-    
-    params['model'] = {**config['Model'], **config.get('Model Parameters', {})}
-    '''
     
     tasks = config['Model Parameters']['custom_head']
 
@@ -123,15 +107,6 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
         log_examples(reader, validation_indices, tasks, 'validation')
         # If only loading data, can end now that dataset logging is complete
         return
-    
-    if  mode == 'predict' or params['evaluation']['custom']['save_final'] or params['evaluation']['custom']['save_intermediate']:
-        file = config['Output'].get('file', "experiment")
-        if random_seed:
-            file += "_{}".format(random_seed)
-        output_file = os.path.abspath(os.path.join(os.path.dirname(__file__), model_dir+"/{}.h5".format(file)))
-        if params['evaluation']['custom']['save_intermediate']:
-            previous_steps = 1 + len(np.unique([key.split("/")[1] for key in list(pd.HDFStore(output_file).keys()) if 'validation_step' in key]))
-        mc_data = get_mc_data(reader, reader_indices, params['example_description'])
 
     if mode == 'train' and config['Training']['apply_class_weights']:
         num_class_examples = log_examples(reader, training_indices,
@@ -176,7 +151,12 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
         training_data = input_fn(reader, training_indices, mode='train', **config['Input'])
         validation_data = input_fn(reader, validation_indices, mode='eval', **config['Input'])
         
-        model.fit(training_data, epochs=params['training']['num_epochs'], validation_data=validation_data)
+        model.fit(training_data,
+                  epochs=params['training']['num_epochs'],
+                  steps_per_epoch=training_steps_per_epoch,
+                  validation_data=validation_data,
+                  verbose=params['training']['verbose']
+                  )
         model.save(model_dir+'/ctlearn_model.h5')
         
     elif mode == 'predict':
@@ -184,11 +164,9 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
         prediction_data = input_fn(reader, indices, mode='predict', **config['Input'])
         
         predictions = model.predict(prediction_data)
-
-        print(evaluations)
-        print(type(evaluations))
-        print(evaluations.shape)
-    
+        #print(evaluations)
+        #print(type(evaluations))
+        #print(evaluations.shape)
     
     # clear the handlers, shutdown the logging and delete the logger
     logger.handlers.clear()
@@ -258,4 +236,3 @@ if __name__ == "__main__":
                 config['Data']['shuffle'] = False
                 config['Prediction']['prediction_label'] = key
                 run_model(config, mode='predict', debug=args.debug, log_to_file=args.log_to_file, multiple_runs=args.multiple_runs)
-
