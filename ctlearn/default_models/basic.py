@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 def conv_block(input, params):
 
@@ -84,3 +85,46 @@ def conv_head(input, params):
     flat = tf.keras.layers.Flatten()(x)
 
     return flat
+
+
+def bayesian_conv_block(input, params):
+        # Get standard hyperparameters
+        bn_momentum = params.get('batchnorm_decay', 0.99)
+        # Get custom hyperparameters
+        filters_list = [layer['filters'] for layer in
+                        params['bayesian']['bayesian_conv_block']['layers']]
+        kernel_sizes = [layer['kernel_size'] for layer in
+                        params['bayesian']['bayesian_conv_block']['layers']]
+        max_pool = params['bayesian']['bayesian_conv_block']['max_pool']
+        bottleneck_filters = params['bayesian']['bayesian_conv_block']['bottleneck']
+        batchnorm = params['bayesian']['bayesian_conv_block'].get('batchnorm', False)
+
+        x = input
+        if batchnorm:
+            x = tf.keras.layers.BatchNormalization(momentum=bn_momentum)(x)
+
+        for i, (filters, kernel_size) in enumerate(
+                zip(filters_list, kernel_sizes)):
+            x = tfp.layers.Convolution2DFlipout(filters=filters,
+                                                kernel_size=kernel_size,
+                                                activation=tf.nn.relu,
+                                                padding="same",
+                                                name="bayes_conv_{}".format(i + 1))(x)
+            if max_pool:
+                x = tf.keras.layers.MaxPool2D(pool_size=max_pool['size'],
+                                              strides=max_pool['strides'], name="pool_{}".format(i + 1))(x)
+            if batchnorm:
+                x = tf.keras.layers.BatchNormalization(momentum=bn_momentum)(x)
+
+        # bottleneck layer
+        if bottleneck_filters:
+            x = tfp.layers.Convolution2DFlipout(filters=bottleneck_filters,
+                                                kernel_size=1,
+                                                activation=tf.nn.relu,
+                                                padding="same",
+                                                name="bayes_bottleneck")(x)
+            if batchnorm:
+                x = tf.keras.layers.BatchNormalization(momentum=bn_momentum)(x)
+
+        return x
+

@@ -53,11 +53,11 @@ Model:
     #model_file: '/home/jredondo/deeplearning/test/multitask_test/ctlearn_model.h5'
     # Change with your folder structure
     model_directory: '/home/jredondo/ctlearn/ctlearn/default_models/'
-    model: {module: 'ctlearn_model', function: 'build_model'}
+    model: {module: 'ctlearn_model', function: 'build_bayesian_model'}
     model_settings:
-        cnn_block: 'single_cnn'
+        cnn_block: 'bayesian_single_cnn'
         # Here you have to pass in 'bayesian_head'
-        ct_head: 'single_tel_head'
+        ct_head: 'bayesian_head'
 Model Parameters:
     basic:
         conv_block:
@@ -80,6 +80,16 @@ Model Parameters:
             final_avg_pool: true
             batchnorm: false
         batchnorm_decay: 0.99
+    bayesian:
+        bayesian_conv_block:
+            layers:
+                - {filters: 32, kernel_size: 3}
+                - {filters: 32, kernel_size: 3}
+                - {filters: 64, kernel_size: 3}
+                - {filters: 128, kernel_size: 3}
+            max_pool: {size: 2, strides: 2}
+            bottleneck: null
+            batchnorm: false
     #bayesian_head:
     #    args goes here
     keras:

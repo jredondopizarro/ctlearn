@@ -2,6 +2,7 @@ import importlib
 import sys
 
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from ctlearn.default_models.basic import *
 
@@ -81,6 +82,13 @@ def gammaPhysNet_head(inputs, model_params):
 def attention_head(inputs, model_params):
     raise NotImplementedError
 
-def bayesian_head(inputs, model_params):
-    raise NotImplementedError
+def bayesian_head(inputs, cnn_output, model_params):
+    output_flattened = tf.keras.layers.Flatten()(cnn_output)
+    logits = tfp.layers.DenseFlipout(1, activation='sigmoid', name="particletype")(output_flattened)
+
+    tf.keras.backend.set_learning_phase(True)
+    model = tf.keras.Model(inputs=inputs, outputs=logits)
+
+    return model
+
     
