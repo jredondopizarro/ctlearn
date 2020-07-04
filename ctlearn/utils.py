@@ -28,13 +28,23 @@ def setup_logging(config, log_dir, debug, log_to_file):
         logger.setLevel(logging.INFO)
 
     logger.handlers = [] # remove existing handlers from any previous runs
-    if not log_to_file:
-        handler = logging.StreamHandler()
-    else:
-        logging_filename = os.path.join(log_dir, time_str + '_logfile.log')
-        handler = logging.FileHandler(logging_filename)
-    handler.setFormatter(logging.Formatter("%(levelname)s:%(message)s"))
-    logger.addHandler(handler)
+
+    # if not log_to_file:
+    #     handler = logging.StreamHandler()
+    # else:
+    #     logging_filename = os.path.join(log_dir, time_str + '_logfile.log')
+    #     handler = logging.FileHandler(logging_filename)
+    # handler.setFormatter(logging.Formatter("%(levelname)s:%(message)s"))
+    # logger.addHandler(handler)
+
+    handler_stdout = logging.StreamHandler()
+    handler_stdout.setFormatter(logging.Formatter("%(levelname)s:%(message)s"))
+    logger.addHandler(handler_stdout)
+
+    logging_filename = os.path.join(log_dir, time_str + '_logfile.log')
+    handler_file = logging.FileHandler(logging_filename)
+    handler_file.setFormatter(logging.Formatter("%(levelname)s:%(message)s"))
+    logger.addHandler(handler_file)
 
     return logger
 
