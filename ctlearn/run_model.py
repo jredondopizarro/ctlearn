@@ -7,7 +7,7 @@ import os
 from pprint import pformat
 import sys
 from functools import partial
-
+import pickle
 import numpy as np
 import yaml
 
@@ -151,13 +151,17 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
         training_data = input_fn(reader, training_indices, mode='train', **config['Input'])
         validation_data = input_fn(reader, validation_indices, mode='eval', **config['Input'])
         
-        model.fit(training_data,
+        history = model.fit(training_data,
                   epochs=params['training']['num_epochs'],
                   steps_per_epoch=training_steps_per_epoch,
                   validation_data=validation_data,
                   verbose=params['training']['verbose']
                   )
         model.save(model_dir+'/ctlearn_model.h5')
+
+        with open(model_dir +'/history.pickle', 'wb') as file:
+            pickle.dump(history, file)
+
         
     elif mode == 'predict':
 
@@ -236,3 +240,5 @@ if __name__ == "__main__":
                 config['Data']['shuffle'] = False
                 config['Prediction']['prediction_label'] = key
                 run_model(config, mode='predict', debug=args.debug, log_to_file=args.log_to_file, multiple_runs=args.multiple_runs)
+
+
