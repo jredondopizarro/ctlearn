@@ -140,7 +140,7 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
             model_fn = getattr(model_module, config['Model']['model']['function'])
             # Write the model parameters in the params dictionary
             
-            model = model_fn(feature_shapes, params['model'], num_training_examples)
+            model = model_fn(feature_shapes, params['model'], training_steps_per_epoch)
             
             #print(model.summary())
             #print("Trainable variables:")
