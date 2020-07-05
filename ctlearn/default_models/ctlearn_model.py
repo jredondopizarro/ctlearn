@@ -41,7 +41,7 @@ def build_model(feature_shapes, params):
     return model
 
 
-def build_bayesian_model(feature_shapes, params):
+def build_bayesian_model(feature_shapes, params, num_training_examples):
     cnn_block_fn = getattr(cnn_blocks,
                            params['model_settings']['cnn_block'])
     input, cnn_block = cnn_block_fn(feature_shapes, params)
@@ -69,9 +69,10 @@ def build_bayesian_model(feature_shapes, params):
     optimizer = optimizer_fn(**optimizer_args)
 
 
+
     def custom_loss_function(labels, logits):
         neg_log_likelihood = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
-        kl = sum(model.losses)
+        kl = sum(model.losses)/num_training_examples
         loss = neg_log_likelihood + kl
         return loss
 
