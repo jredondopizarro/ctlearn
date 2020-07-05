@@ -71,7 +71,7 @@ def build_bayesian_model(feature_shapes, params):
 
     def custom_loss_function(labels, logits):
         neg_log_likelihood = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
-        kl = tf.keras.losses.KLD(labels=labels, logits=logits)
+        kl = sum(model.losses)
         loss = neg_log_likelihood + kl
         return loss
 
