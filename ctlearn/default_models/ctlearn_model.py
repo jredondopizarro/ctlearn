@@ -77,6 +77,8 @@ def build_bayesian_model(feature_shapes, params, num_training_examples):
         return loss
 
 
+
+
     # logits = model(features)
     # neg_log_likelihood = tf.nn.softmax_cross_entropy_with_logits(
     #     labels=labels, logits=logits)
@@ -84,7 +86,7 @@ def build_bayesian_model(feature_shapes, params, num_training_examples):
     # loss = neg_log_likelihood + kl
     # Compile the model
 
-    model.compile(loss='binary_crossentropy', optimizer=optimizer,
+    model.compile(loss=tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2, optimizer=optimizer,
                   metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC()])
     # return compiled model
     return model
