@@ -10,9 +10,9 @@ def single_cnn(feature_shapes, model_params):
     output = conv_block(image_input, params=model_params)
     return image_input, output
 
-def bayesian_single_cnn(feature_shapes, model_params):
+def bayesian_single_cnn(feature_shapes, model_params, num_training_examples):
     image_input = tf.keras.layers.Input(shape=tf.TensorShape(feature_shapes['image']), name='image')
-    output = bayesian_conv_block(image_input, params=model_params)
+    output = bayesian_conv_block(image_input, model_params, num_training_examples)
     return image_input, output
 
 def multi_cnn(feature_shapes, model_params):

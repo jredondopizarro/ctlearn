@@ -8,7 +8,6 @@ from ctlearn.default_models.basic import *
 
 # Only for testing
 def single_tel_head(input, cnn_output, model_params):
-
     output_flattened = tf.keras.layers.Flatten()(cnn_output)
     logits = tf.keras.layers.Dense(1, activation='sigmoid', name="particletype")(output_flattened)
     
@@ -82,9 +81,15 @@ def gammaPhysNet_head(inputs, model_params):
 def attention_head(inputs, model_params):
     raise NotImplementedError
 
-def bayesian_head(inputs, cnn_output, model_params):
+def bayesian_head(inputs, cnn_output, model_params, num_training_examples):
+    kl_divergence_function = (lambda q, p, _: tfp.kl_divergence(q, p) /
+                              tf.cast(num_training_examples, dtype=tf.float32))
+
     output_flattened = tf.keras.layers.Flatten()(cnn_output)
-    logits = tfp.layers.DenseFlipout(1, activation='sigmoid', name="particletype")(output_flattened)
+    logits = tfp.layers.DenseFlipout(1,
+                                     kernel_divergence_fn=kl_divergence_function,
+                                     activation='sigmoid',
+                                     name="particletype")(output_flattened)
 
     tf.keras.backend.set_learning_phase(True)
     model = tf.keras.Model(inputs=inputs, outputs=logits)

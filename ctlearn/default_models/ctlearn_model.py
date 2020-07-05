@@ -44,11 +44,11 @@ def build_model(feature_shapes, params):
 def build_bayesian_model(feature_shapes, params, num_training_examples):
     cnn_block_fn = getattr(cnn_blocks,
                            params['model_settings']['cnn_block'])
-    input, cnn_block = cnn_block_fn(feature_shapes, params)
+    input, cnn_block = cnn_block_fn(feature_shapes, params, num_training_examples)
 
     ct_head_fn = getattr(ct_heads,
                          params['model_settings']['ct_head'])
-    model = ct_head_fn(input, cnn_block, params)
+    model = ct_head_fn(input, cnn_block, params, num_training_examples)
 
     learning_rate = params['base_learning_rate']
     # Select optimizer with appropriate arguments
@@ -84,7 +84,7 @@ def build_bayesian_model(feature_shapes, params, num_training_examples):
     # loss = neg_log_likelihood + kl
     # Compile the model
 
-    model.compile(loss=custom_loss_function, optimizer=optimizer,
+    model.compile(loss='binary_crossentropy', optimizer=optimizer,
                   metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC()])
     # return compiled model
     return model

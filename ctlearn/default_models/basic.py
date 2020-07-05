@@ -87,7 +87,7 @@ def conv_head(input, params):
     return flat
 
 
-def bayesian_conv_block(input, params):
+def bayesian_conv_block(input, params, num_training_examples):
         # Get standard hyperparameters
         bn_momentum = params.get('batchnorm_decay', 0.99)
         # Get custom hyperparameters
@@ -99,6 +99,9 @@ def bayesian_conv_block(input, params):
         bottleneck_filters = params['bayesian']['bayesian_conv_block']['bottleneck']
         batchnorm = params['bayesian']['bayesian_conv_block'].get('batchnorm', False)
 
+        kl_divergence_function = (lambda q, p, _: tfp.kl_divergence(q, p) /
+                                  tf.cast(num_training_examples, dtype=tf.float32))
+
         x = input
         if batchnorm:
             x = tf.keras.layers.BatchNormalization(momentum=bn_momentum)(x)
@@ -109,6 +112,7 @@ def bayesian_conv_block(input, params):
                                                 kernel_size=kernel_size,
                                                 activation=tf.nn.relu,
                                                 padding="same",
+                                                kernel_divergence_fn = kl_divergence_function,
                                                 name="bayes_conv_{}".format(i + 1))(x)
             if max_pool:
                 x = tf.keras.layers.MaxPool2D(pool_size=max_pool['size'],
@@ -122,6 +126,7 @@ def bayesian_conv_block(input, params):
                                                 kernel_size=1,
                                                 activation=tf.nn.relu,
                                                 padding="same",
+                                                kernel_divergence_fn=kl_divergence_function,
                                                 name="bayes_bottleneck")(x)
             if batchnorm:
                 x = tf.keras.layers.BatchNormalization(momentum=bn_momentum)(x)
