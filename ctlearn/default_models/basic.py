@@ -99,7 +99,7 @@ def bayesian_conv_block(input, params, num_training_examples):
         bottleneck_filters = params['bayesian']['bayesian_conv_block']['bottleneck']
         batchnorm = params['bayesian']['bayesian_conv_block'].get('batchnorm', False)
 
-        kl_divergence_function = (lambda q, p, _: tfp.kl_divergence(q, p) /
+        kl_divergence_function = (lambda q, p, _: tfp.distributions.kl_divergence(q, p) /
                                   tf.cast(num_training_examples, dtype=tf.float32))
 
         x = input

@@ -82,7 +82,7 @@ def attention_head(inputs, model_params):
     raise NotImplementedError
 
 def bayesian_head(inputs, cnn_output, model_params, num_training_examples):
-    kl_divergence_function = (lambda q, p, _: tfp.kl_divergence(q, p) /
+    kl_divergence_function = (lambda q, p, _: tfp.distributions.kl_divergence(q, p) /
                               tf.cast(num_training_examples, dtype=tf.float32))
 
     output_flattened = tf.keras.layers.Flatten()(cnn_output)
