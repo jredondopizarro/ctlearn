@@ -134,6 +134,8 @@ Evaluation:
         save_intermediate: true
         save_final: true
 Prediction:
+    monte_carlo_sampling: False
+    num_samples: 100
     prediction_file_lists:
         'gamma1': '/home/jredondo/deeplearning/LST_mono_training_gp.txt'
         'gamma2': '/home/jredondo/deeplearning/LST_mono_training_gp.txt'

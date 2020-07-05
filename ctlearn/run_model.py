@@ -159,15 +159,32 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
                   )
         model.save(model_dir+'/ctlearn_model.h5')
 
-        with open(model_dir +'/history.pickle', 'wb') as file:
+        with open(model_dir + '/history.pickle', 'wb') as file:
             pickle.dump(history, file)
 
-        
+
     elif mode == 'predict':
 
         prediction_data = input_fn(reader, indices, mode='predict', **config['Input'])
-        
-        predictions = model.predict(prediction_data)
+
+        if config['Prediction'].get('monte_carlo_sampling', False):
+            num_samples = config['Prediction'].get('num_samples', 100)
+            predictions = [model.predict(prediction_data) for _ in num_samples]
+
+        else:
+            predictions = model.predict(prediction_data)
+
+        with open(model_dir + '/predictions.pickle', 'wb') as file:
+            pickle.dump(predictions, file)
+
+        with open(model_dir + '/labels.pickle', 'wb') as file:
+            pickle.dump(prediction_data[1], file)
+
+
+
+
+
+
         #print(evaluations)
         #print(type(evaluations))
         #print(evaluations.shape)
