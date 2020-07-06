@@ -50,6 +50,9 @@ def build_bayesian_model(feature_shapes, params, num_training_examples):
                          params['model_settings']['ct_head'])
     model = ct_head_fn(input, cnn_block, params, num_training_examples)
 
+
+
+
     learning_rate = params['base_learning_rate']
     # Select optimizer with appropriate arguments
     # Dict of optimizer_name: (optimizer_fn, optimizer_args)

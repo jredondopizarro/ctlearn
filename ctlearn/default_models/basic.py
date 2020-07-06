@@ -106,6 +106,12 @@ def bayesian_conv_block(input, params, num_training_examples):
         if batchnorm:
             x = tf.keras.layers.BatchNormalization(momentum=bn_momentum)(x)
 
+        x = tf.keras.layers.Conv2D(filters=filters_list[0], kernel_size=kernel_sizes[0],
+                activation=tf.nn.relu, padding="same", name="conv_{}".format(0+1))(x)
+
+        filters_list = filters_list[1:]
+        kernel_sizes = kernel_sizes[1:]
+
         for i, (filters, kernel_size) in enumerate(
                 zip(filters_list, kernel_sizes)):
             x = tfp.layers.Convolution2DFlipout(filters=filters,
