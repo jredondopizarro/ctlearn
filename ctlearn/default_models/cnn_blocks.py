@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from ctlearn.default_models.basic import *
 
-def single_cnn(feature_shapes, model_params):
+def single_cnn(feature_shapes, model_params, num_training_examples):
     image_input = tf.keras.layers.Input(shape=tf.TensorShape(feature_shapes['image']), name='image')
     output = conv_block(image_input, params=model_params)
     return image_input, output
