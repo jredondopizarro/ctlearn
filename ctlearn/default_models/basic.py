@@ -110,8 +110,13 @@ def bayesian_conv_block(input, params, num_training_examples):
                 activation=tf.nn.relu, padding="same",  kernel_divergence_fn = kl_divergence_function,
                                    name="conv_{}".format(0+1))(x)
 
-        filters_list = filters_list[1:]
-        kernel_sizes = kernel_sizes[1:]
+        x = tfp.layers.Convolution2DFlipout(filters=filters_list[1], kernel_size=kernel_sizes[1],
+                                            activation=tf.nn.relu, padding="same",
+                                            kernel_divergence_fn=kl_divergence_function,
+                                            name="conv_{}".format(0 + 2))(x)
+
+        filters_list = filters_list[2:]
+        kernel_sizes = kernel_sizes[2:]
 
         for i, (filters, kernel_size) in enumerate(
                 zip(filters_list, kernel_sizes)):
