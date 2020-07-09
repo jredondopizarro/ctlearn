@@ -49,7 +49,8 @@ def build_bayesian_model(feature_shapes, kl_weight):
 
         outputs = tfp.layers.DenseFlipout(1,
                                           kernel_divergence_fn=kl_divergence_function,
-                                          activation='sigmoid')(x)
+                                          activation='sigmoid',
+                                          name='particletype')(x)
 
     else:
 
