@@ -25,6 +25,8 @@ from ctlearn.utils import *
 ANNEAL_KL = False
 # epochs to anneal the KL term (anneals from 0 to 1)
 KL_ANNEALING = 5
+# whether to use the alternative annealing strategy
+ALTERNATIVE_ANNEALING = False
 
 def run_model(config, mode="train", debug=False, log_to_file=False, multiple_runs=1):
 
@@ -142,10 +144,9 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
             model_module = importlib.import_module(config['Model']['model']['module'])
             model_fn = getattr(model_module, config['Model']['model']['function'])
 
-            # KL ANNEALING
-            t = K.variable(0.0)
-            kl_regularizer = t / (KL_ANNEALING * len(num_training_examples) / batch_size)
+            callbacks_list = []
 
+            # KL ANNEALING
             class AnnealingCallback(tf.keras.callbacks.Callback):
                 def __init__(self, t):
                     super(AnnealingCallback, self).__init__()
@@ -154,13 +155,25 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
                 def on_train_batch_end(self, batch, logs=None):
                     new_t = K.get_value(self.t) + 1
                     K.set_value(self.t, new_t)
-                    print('Current KL Weight: ' + str(K.minimum(1, K.get_value(kl_regularizer))))
                     print('Current model losses: ' + str(sum(model.losses)))
+                    if not ALTERNATIVE_ANNEALING:
+                        print('Current KL Regularizer: ' + str(K.minimum(1, K.get_value(kl_regularizer))))
+                    else:
+                        print('Current KL Weight: ' + str(K.get_value(kl_weight)))
 
-            callbacks_list = []
             if ANNEAL_KL:
+
+                if not ALTERNATIVE_ANNEALING:
+                    t = K.variable(0.0)
+                    kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
+                    kl_weight = 1 / num_training_examples * K.minimum(1.0, kl_regularizer)
+
+                else:
+                    t = K.variable(1.0)
+                    kl_weight = 2 ** (training_steps_per_epoch - t) / (2 ** training_steps_per_epoch - 1)
+
                 callbacks_list.append(AnnealingCallback(t))
-                kl_weight = 1 / num_training_examples * K.minimum(1, kl_regularizer)
+
             else:
                 kl_weight = 1 / num_training_examples
 
