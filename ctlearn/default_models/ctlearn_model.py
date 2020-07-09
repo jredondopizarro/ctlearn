@@ -66,7 +66,8 @@ def build_bayesian_model(feature_shapes, kl_weight):
         x = tf.keras.layers.Flatten()(x)
 
         outputs = tf.keras.layers.Dense(1,
-                                        activation='sigmoid')(x)
+                                        activation='sigmoid',
+                                        name='particletype')(x)
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
 
