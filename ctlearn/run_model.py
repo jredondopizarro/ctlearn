@@ -21,6 +21,8 @@ from ctlearn.utils import *
 # Disable Tensorflow info and warning messages (not error messages)
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.logging.set_verbosity(tf.logging.WARN)
+tf.config.experimental_run_functions_eagerly(True)
+
 
 ANNEAL_KL = False
 # epochs to anneal the KL term (anneals from 0 to 1)
@@ -151,15 +153,19 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
                 def __init__(self, t):
                     super(AnnealingCallback, self).__init__()
                     self.t = t
+                    self.seen = 0
+                    self.display = 1000
 
                 def on_train_batch_end(self, batch, logs=None):
                     new_t = K.get_value(self.t) + 1
                     K.set_value(self.t, new_t)
-                    print('Current model losses: ' + str(sum(model.losses)))
-                    if not ALTERNATIVE_ANNEALING:
-                        print('Current KL Regularizer: ' + str(K.minimum(1, K.get_value(kl_regularizer))))
-                    else:
-                        print('Current KL Weight: ' + str(K.get_value(kl_weight)))
+                    self.seen += 1
+                    if self.seen >= self.display:
+                        self.seen = 0
+                        if not ALTERNATIVE_ANNEALING:
+                            print('Current KL Regularizer: ' + str(K.minimum(1, K.get_value(kl_regularizer))))
+                        else:
+                            print('Current KL Weight: ' + str(K.get_value(kl_weight)))
 
             if ANNEAL_KL:
 
