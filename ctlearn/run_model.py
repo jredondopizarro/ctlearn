@@ -22,6 +22,10 @@ from ctlearn.utils import *
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.logging.set_verbosity(tf.logging.WARN)
 
+ANNEAL_KL = False
+# epochs to anneal the KL term (anneals from 0 to 1)
+KL_ANNEALING = 5
+
 def run_model(config, mode="train", debug=False, log_to_file=False, multiple_runs=1):
 
     # Load options relating to logging and checkpointing
@@ -138,9 +142,30 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
             model_module = importlib.import_module(config['Model']['model']['module'])
             model_fn = getattr(model_module, config['Model']['model']['function'])
 
+            # KL ANNEALING
+            t = K.variable(0.0)
+            kl_regularizer = t / (KL_ANNEALING * len(num_training_examples) / batch_size)
+
+            class AnnealingCallback(tf.keras.callbacks.Callback):
+                def __init__(self, t):
+                    super(AnnealingCallback, self).__init__()
+                    self.t = t
+
+                def on_train_batch_end(self, batch, logs=None):
+                    new_t = K.get_value(self.t) + 1
+                    K.set_value(self.t, new_t)
+                    print('Current KL Weight: ' + str(K.minimum(1, K.get_value(kl_regularizer))))
+                    print('Current model losses: ' + str(sum(model.losses)))
+
+            callbacks_list = []
+            if ANNEAL_KL:
+                callbacks_list.append(AnnealingCallback(t))
+                kl_weight = 1 / num_training_examples * K.minimum(1, kl_regularizer)
+            else:
+                kl_weight = 1 / num_training_examples
+
             # get the model
-            weight = 1 / tf.cast(num_training_examples, dtype=tf.float32)
-            model = model_fn(feature_shapes, weight)
+            model = model_fn(feature_shapes, kl_weight)
             print(model.summary())
 
     if mode == 'train':
@@ -152,7 +177,8 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
                             epochs=params['training']['num_epochs'],
                             steps_per_epoch=training_steps_per_epoch,
                             validation_data=validation_data,
-                            verbose=params['training']['verbose'])
+                            verbose=params['training']['verbose'],
+                            callbacks=callbacks_list)
 
         model.save(model_dir+'/ctlearn_model.h5')
 
