@@ -12,10 +12,9 @@ import numpy as np
 import yaml
 
 import tensorflow as tf
-from tensorflow.python import debug as tf_debug
+from tensorflow.keras import backend as K
 
 from dl1_data_handler.reader import DL1DataReader
-from ctlearn.default_models.ctlearn_model import build_model
 from ctlearn.data_loader import *
 from ctlearn.utils import *
 
@@ -138,25 +137,23 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
             
             model_module = importlib.import_module(config['Model']['model']['module'])
             model_fn = getattr(model_module, config['Model']['model']['function'])
-            # Write the model parameters in the params dictionary
-            
-            model = model_fn(feature_shapes, params['model'], num_training_examples)
-            
-            #print(model.summary())
-            #print("Trainable variables:")
-            #print(model.trainable_variables)
-            
+
+            # get the model
+            weight = 1 / tf.cast(num_training_examples, dtype=tf.float32)
+            model = model_fn(feature_shapes, weight)
+            print(model.summary())
+
     if mode == 'train':
 
         training_data = input_fn(reader, training_indices, mode='train', **config['Input'])
         validation_data = input_fn(reader, validation_indices, mode='eval', **config['Input'])
         
         history = model.fit(training_data,
-                  epochs=params['training']['num_epochs'],
-                  steps_per_epoch=training_steps_per_epoch,
-                  validation_data=validation_data,
-                  verbose=params['training']['verbose']
-                  )
+                            epochs=params['training']['num_epochs'],
+                            steps_per_epoch=training_steps_per_epoch,
+                            validation_data=validation_data,
+                            verbose=params['training']['verbose'])
+
         model.save(model_dir+'/ctlearn_model.h5')
 
         with open(model_dir + '/history.pickle', 'wb') as file:
@@ -177,18 +174,6 @@ def run_model(config, mode="train", debug=False, log_to_file=False, multiple_run
         with open(model_dir + '/predictions.pickle', 'wb') as file:
             pickle.dump(predictions, file)
 
-        with open(model_dir + '/labels.pickle', 'wb') as file:
-            pickle.dump(prediction_data[1], file)
-
-
-
-
-
-
-        #print(evaluations)
-        #print(type(evaluations))
-        #print(evaluations.shape)
-    
     # clear the handlers, shutdown the logging and delete the logger
     logger.handlers.clear()
     logging.shutdown()
