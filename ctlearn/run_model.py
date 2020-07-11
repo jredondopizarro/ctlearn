@@ -28,7 +28,7 @@ from ctlearn.utils import *
 # tf hyperparameters:
 LEARNING_RATE = 0.0005
 EPSILON = 1.0e-8
-LOG_FREQ = 10
+LOG_FREQ = 50
 
 # whether to anneal the KL divergence term
 ANNEAL_KL = False
