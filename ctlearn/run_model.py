@@ -31,7 +31,7 @@ EPSILON = 1.0e-8
 LOG_FREQ = 50
 
 # whether to anneal the KL divergence term
-ANNEAL_KL = False
+ANNEAL_KL = True
 # epochs to anneal the KL term (anneals from 0 to 1)
 KL_ANNEALING = 5
 # whether to use the alternative annealing strategy, only if ANNEAL_KL is True (anneals from 0.5 to 0)
@@ -314,22 +314,14 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         training_data = input_fn(reader, training_indices, mode='train', **config['Input'])
         validation_data = input_fn(reader, validation_indices, mode='eval', **config['Input'])
 
-        # if ANNEAL_KL:
-        #
-        #     if not ALTERNATIVE_ANNEALING:
-        #         t = tf.Variable(0.0)
-        #         kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
-        #         kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
-        #
-        #     else:
-        #         t = tf.Variable(1.0)
-        #         kl_weight = 2 ** (training_steps_per_epoch - t) / (2 ** training_steps_per_epoch - 1)
-        #
-        # else:
-        #     t = tf.Variable(1.0) # no sirve para nada en este caso
-        #     kl_weight = 1 / num_training_examples
+        if ANNEAL_KL:
+            if not ALTERNATIVE_ANNEALING:
+                t = tf.Variable(0.0)
+            else:
+                t = tf.Variable(1.0)
+        else:
+            t = tf.Variable(1.0) # no sirve para nada en este caso
 
-        t = tf.Variable(0.0)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE,
                                              epsilon=EPSILON)
@@ -380,11 +372,17 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             print('')
             for batch_idx, (inputs, labels) in enumerate(training_data):
                 t.assign_add(1.0)
-                kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
-                kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
+
+                if ANNEAL_KL:
+                    if not ALTERNATIVE_ANNEALING:
+                        kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
+                        kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
+                    else:
+                        kl_weight = 2 ** (training_steps_per_epoch - t) / (2 ** training_steps_per_epoch - 1)
+                else:
+                    kl_weight = 1 / num_training_examples
 
                 train_step(inputs, labels, kl_weight)
-
 
                 if batch_idx % LOG_FREQ == 0:
                     mean_total_loss = train_total_loss_metric.result().numpy()
