@@ -317,15 +317,16 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         if ANNEAL_KL:
 
             if not ALTERNATIVE_ANNEALING:
-                t = K.variable(0.0)
+                t = tf.Variable(0.0)
                 kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
                 kl_weight = 1 / num_training_examples * K.minimum(1.0, kl_regularizer)
 
             else:
-                t = K.variable(1.0)
+                t = tf.Variable(1.0)
                 kl_weight = 2 ** (training_steps_per_epoch - t) / (2 ** training_steps_per_epoch - 1)
 
         else:
+            t = tf.Variable(1.0) # no sirve para nada en este caso
             kl_weight = 1 / num_training_examples
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE,
@@ -378,8 +379,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             for batch_idx, (inputs, labels) in enumerate(training_data):
 
                 train_step(inputs, labels)
-                if ANNEAL_KL:
-                    K.set_value(t, K.get_value(t) + 1)
+                t.assign_add(1.0)
 
                 if batch_idx % LOG_FREQ == 0:
                     mean_total_loss = train_total_loss_metric.result().numpy()
@@ -392,11 +392,10 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     print(f'Epoch: {epoch+1} - Step: {batch_idx}/{training_steps_per_epoch}')
                     print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     print(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
-                    print(f'Current KL weight: {K.get_value(kl_weight):.10f}')
+                    print(f'Current KL weight: {kl_weight:.10f}')
+                    print(f't:{t.numpy()}')
                     print(f't:{t}')
-                    print(f't:{K.get_value(t) }')
-                    print(f'kl regularizer: {t / (KL_ANNEALING * num_training_examples / batch_size)}')
-                    print(f'kl regularizer: {K.get_value(t) / (KL_ANNEALING * num_training_examples / batch_size)}')
+                    print(f'kl regularizer: {kl_regularizer}')
 
                     print('')
 
