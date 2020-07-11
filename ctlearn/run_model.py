@@ -379,7 +379,8 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                         kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
                     else:
                         kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
-                        kl_weight = 2 ** (training_steps_per_epoch - t) / (2 ** training_steps_per_epoch - 1)
+                        kl_weight = tf.cast(2 ** (training_steps_per_epoch - t) / (2 ** training_steps_per_epoch - 1),
+                                            dtype=tf.float64)
                 else:
                     kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
                     kl_weight = 1 / num_training_examples
