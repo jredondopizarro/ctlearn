@@ -395,7 +395,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     train_accuracy_metric.reset_states()
                     train_auc_metric.reset_states()
 
-            print(f'Ending - Epoch: {epoch+1}')
+            print(f'Ending training - Epoch: {epoch+1}')
 
             print(f'Beginning validation - Epoch: {epoch+1}')
             for inputs, labels in validation_data:
