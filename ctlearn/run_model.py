@@ -347,8 +347,9 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             labels = tf.reshape(tf.cast(labels['particletype'], dtype=tf.float32), (-1, 1))
             with tf.GradientTape() as tape:
                 predictions = model(inputs, training=True)
-                print(labels)
+                #print(labels)
                 print(predictions)
+                break
                 neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
                 kl_divergence = sum(model.losses) * kl_weight
                 loss = neg_log_likelihood + kl_divergence
