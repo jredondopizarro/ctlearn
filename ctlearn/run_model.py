@@ -352,7 +352,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             with tf.GradientTape() as tape:
                 predictions = model(inputs, training=True)
                 neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
-                kl_divergence = sum(model.losses) * kl_weight.numpy()
+                kl_divergence = sum(model.losses) * kl_weight.value()
                 loss = neg_log_likelihood + kl_divergence
             # update the weights
             gradients = tape.gradient(loss, model.trainable_variables)
@@ -397,9 +397,9 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     print(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
                     #print(f'Current KL weight: {kl_weight:.10f}')
-                    print(f't:{t.numpy()}')
-                    print(f'kl regularizer: {kl_regularizer.numpy():.10f}')
-                    print(f'kl weight:{kl_weight.nump():.10f}')
+                    print(f't:{t.value()}')
+                    print(f'kl regularizer: {kl_regularizer.value():.10f}')
+                    print(f'kl weight:{kl_weight.value():.10f}')
 
                     print('')
 
