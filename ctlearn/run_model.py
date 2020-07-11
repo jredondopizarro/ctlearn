@@ -340,7 +340,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         val_total_loss_metric = tf.keras.metrics.Mean(name='val_total_loss')
         val_kl_divergence_metric = tf.keras.metrics.Mean(name='val_kl_divergence')
         val_accuracy_metric = tf.keras.metrics.BinaryAccuracy(name='val_accuracy')
-        val_auc_metric = tf.keras.metrics.AUC()(name='val_auc')
+        val_auc_metric = tf.keras.metrics.AUC(name='val_auc')
 
         @tf.function
         def train_step(inputs, labels):
