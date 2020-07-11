@@ -10,7 +10,7 @@ from functools import partial
 import pickle
 import numpy as np
 import yaml
-
+import time
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
@@ -372,12 +372,15 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             val_auc_metric.update_state(labels, predictions)
 
         for epoch in range(params['training']['num_epochs']):
-            print(f'Epoch: {epoch+1}')
+            print(f'Beginning epoch: {epoch+1}')
 
             print(f'Beginning training - Epoch: {epoch+1}')
             for batch_idx, (inputs, labels) in enumerate(training_data):
 
+                start = time.perf_counter()
                 train_step(inputs, labels)
+                step_time = time.perf_counter() - start
+
                 K.set_value(t, K.get_value(t) + 1)
 
                 if batch_idx % LOG_FREQ == 0:
@@ -386,9 +389,13 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     mean_accuracy = train_accuracy_metric.result().numpy()
                     mean_auc = train_auc_metric.result().numpy()
 
-                    print(f'Step: {batch_idx}. Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.3f}')
+                    print(f'Epoch: {epoch+1}')
+                    print(f'Step: {batch_idx}')
+                    print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     print(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
-                    print(f'Current KL weight: {kl_weight:.5f}')
+                    print(f'Current KL weight: {kl_weight:.10f}')
+                    print(f'Steps per second: {1/step_time}')
+                    print(f'Aprox. remaining time: {(training_steps_per_epoch-batch_idx)/step_time} s')
 
                     train_total_loss_metric.reset_states()
                     train_kl_divergence_metric.reset_states()
@@ -406,7 +413,8 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             mean_accuracy = val_accuracy_metric.result().numpy()
             mean_auc = val_auc_metric.result().numpy()
 
-            print(f'Val total loss: {mean_total_loss:.3f}. Val KL div: {mean_kl_divergence:.3f}')
+            print(f'Epoch: {epoch + 1}')
+            print(f'Val total loss: {mean_total_loss:.3f}. Val KL div: {mean_kl_divergence:.5f}')
             print(f'Val accuracy: {mean_accuracy:.3f}. Val auc: {mean_auc:.3f}')
 
             val_total_loss_metric.reset_states()
