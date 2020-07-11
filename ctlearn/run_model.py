@@ -319,7 +319,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             if not ALTERNATIVE_ANNEALING:
                 t = tf.Variable(0.0)
                 kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
-                kl_weight = 1 / num_training_examples * K.minimum(1.0, kl_regularizer)
+                kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
 
             else:
                 t = tf.Variable(1.0)
@@ -343,12 +343,12 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         val_auc_metric = tf.keras.metrics.AUC(name='val_auc')
 
         @tf.function
-        def train_step(inputs, labels):
+        def train_step(inputs, labels, kl_weight):
             labels = tf.reshape(tf.cast(labels['particletype'], dtype=tf.float32), (-1, 1))
             with tf.GradientTape() as tape:
                 predictions = model(inputs, training=True)
                 neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
-                kl_divergence = sum(model.losses) * K.get_value(kl_weight)
+                kl_divergence = sum(model.losses) * kl_weight
                 loss = neg_log_likelihood + kl_divergence
             # update the weights
             gradients = tape.gradient(loss, model.trainable_variables)
@@ -378,7 +378,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             print('')
             for batch_idx, (inputs, labels) in enumerate(training_data):
 
-                train_step(inputs, labels)
+                train_step(inputs, labels, kl_weight)
                 t.assign_add(1.0)
 
                 if batch_idx % LOG_FREQ == 0:
@@ -393,9 +393,8 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     print(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
                     print(f'Current KL weight: {kl_weight:.10f}')
-                    print(f't:{t.numpy()}')
-                    print(f't:{t}')
-                    print(f'kl regularizer: {kl_regularizer}')
+                    print(f'kl regularizer: {kl_regularizer:.10f}')
+                    print(f't:{1 / num_training_examples * tf.minimum(1.0, kl_regularizer)}')
 
                     print('')
 
