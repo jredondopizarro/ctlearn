@@ -342,13 +342,11 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         val_accuracy_metric = tf.keras.metrics.BinaryAccuracy(name='val_accuracy')
         val_auc_metric = tf.keras.metrics.AUC(name='val_auc')
 
-        #@tf.function
+        @tf.function
         def train_step(inputs, labels):
             labels = tf.cast(labels['particletype'], dtype=tf.float32)
             with tf.GradientTape() as tape:
                 predictions = model(inputs, training=True)
-                print(predictions)
-                print(labels)
                 neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
                 kl_divergence = sum(model.losses) * kl_weight
                 loss = neg_log_likelihood + kl_divergence
