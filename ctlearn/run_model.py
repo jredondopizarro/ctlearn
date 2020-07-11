@@ -343,6 +343,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                 neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
                 kl_divergence = sum(model.losses) * kl_weight
                 loss = neg_log_likelihood + kl_divergence
+
             # update the weights
             gradients = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
@@ -396,7 +397,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     print(f'Epoch: {epoch+1} - Step: {batch_idx}/{training_steps_per_epoch}')
                     print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     print(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
-                    print(f'Current KL weight: {kl_weight.numpy:.10f}')
+                    print(f'Current KL weight: {kl_weight.numpy():.10f}')
                     print('')
 
                     train_total_loss_metric.reset_states()
