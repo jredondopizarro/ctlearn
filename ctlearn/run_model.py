@@ -374,8 +374,8 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
 
             print(f'Beginning training - Epoch: {epoch+1}')
             for batch_idx, (inputs, labels) in enumerate(training_data):
-                print(type(inputs))
-                print(type(labels))
+                print(inputs)
+                print(labels)
 
                 train_step(inputs, labels)
                 K.set_value(t, K.get_value(t) + 1)
