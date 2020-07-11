@@ -392,7 +392,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
 
                     print('')
                     print(f'Epoch: {epoch+1}')
-                    print(f'Step: {batch_idx}')
+                    print(f'Step: {batch_idx}/{training_steps_per_epoch}')
                     print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     print(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
                     print(f'Current KL weight: {kl_weight:.10f}')
