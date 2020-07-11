@@ -150,7 +150,7 @@ def input_fn(reader, indices, output_names, output_dtypes, output_shapes,
         if shuffle_buffer_size is None:
             shuffle_buffer_size = len(indices)
         dataset = dataset.shuffle(buffer_size=shuffle_buffer_size, seed=seed, reshuffle_each_iteration=True)
-        dataset = dataset.repeat()
+        #dataset = dataset.repeat()
     dataset = dataset.batch(batch_size)
     dataset = dataset.prefetch(prefetch_buffer_size)
     
