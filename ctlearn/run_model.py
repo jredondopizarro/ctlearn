@@ -330,8 +330,8 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         #     kl_weight = 1 / num_training_examples
 
         t = tf.Variable(0.0)
-        kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
-        kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
+        kl_regularizer = tf.Variable(t / (KL_ANNEALING * num_training_examples / batch_size))
+        kl_weight = tf.Variable(1 / num_training_examples * tf.minimum(1.0, kl_regularizer))
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE,
                                              epsilon=EPSILON)
