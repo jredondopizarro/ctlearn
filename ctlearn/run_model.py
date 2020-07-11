@@ -314,20 +314,24 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         training_data = input_fn(reader, training_indices, mode='train', **config['Input'])
         validation_data = input_fn(reader, validation_indices, mode='eval', **config['Input'])
 
-        if ANNEAL_KL:
+        # if ANNEAL_KL:
+        #
+        #     if not ALTERNATIVE_ANNEALING:
+        #         t = tf.Variable(0.0)
+        #         kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
+        #         kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
+        #
+        #     else:
+        #         t = tf.Variable(1.0)
+        #         kl_weight = 2 ** (training_steps_per_epoch - t) / (2 ** training_steps_per_epoch - 1)
+        #
+        # else:
+        #     t = tf.Variable(1.0) # no sirve para nada en este caso
+        #     kl_weight = 1 / num_training_examples
 
-            if not ALTERNATIVE_ANNEALING:
-                t = tf.Variable(0.0)
-                kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
-                kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
-
-            else:
-                t = tf.Variable(1.0)
-                kl_weight = 2 ** (training_steps_per_epoch - t) / (2 ** training_steps_per_epoch - 1)
-
-        else:
-            t = tf.Variable(1.0) # no sirve para nada en este caso
-            kl_weight = 1 / num_training_examples
+        t = tf.Variable(0.0)
+        kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
+        kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE,
                                              epsilon=EPSILON)
@@ -348,7 +352,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             with tf.GradientTape() as tape:
                 predictions = model(inputs, training=True)
                 neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
-                kl_divergence = sum(model.losses) * kl_weight
+                kl_divergence = sum(model.losses) * kl_weight.numpy()
                 loss = neg_log_likelihood + kl_divergence
             # update the weights
             gradients = tape.gradient(loss, model.trainable_variables)
@@ -392,9 +396,10 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     print(f'Epoch: {epoch+1} - Step: {batch_idx}/{training_steps_per_epoch}')
                     print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     print(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
-                    print(f'Current KL weight: {kl_weight:.10f}')
-                    print(f'kl regularizer: {kl_regularizer:.10f}')
-                    print(f't:{1 / num_training_examples * tf.minimum(1.0, kl_regularizer)}')
+                    #print(f'Current KL weight: {kl_weight:.10f}')
+                    print(f't:{t.numpy()}')
+                    print(f'kl regularizer: {kl_regularizer.numpy():.10f}')
+                    print(f'kl weight:{kl_weight.nump():.10f}')
 
                     print('')
 
