@@ -396,6 +396,9 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     print(f'Current KL weight: {kl_weight:.10f}')
                     print(f't:{t}')
                     print(f't:{K.get_value(t) }')
+                    print(f'kl regularizer: {t / (KL_ANNEALING * num_training_examples / batch_size)}')
+                    print(f'kl regularizer: {K.get_value(t) / (KL_ANNEALING * num_training_examples / batch_size)}')
+
                     print('')
 
                     train_total_loss_metric.reset_states()
