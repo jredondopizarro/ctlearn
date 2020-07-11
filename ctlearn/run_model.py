@@ -335,13 +335,13 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         val_accuracy_metric = tf.keras.metrics.BinaryAccuracy(name='val_accuracy')
         val_auc_metric = tf.keras.metrics.AUC(name='val_auc')
 
-        #@tf.function
+        @tf.function
         def train_step(inputs, labels, kl_weight):
             labels = tf.reshape(tf.cast(labels['particletype'], dtype=tf.float32), (-1, 1))
             with tf.GradientTape() as tape:
                 predictions = model(inputs, training=True)
                 neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
-                kl_divergence = sum(model.losses) * kl_weight.numpy()
+                kl_divergence = sum(model.losses) * kl_weight
                 loss = neg_log_likelihood + kl_divergence
             # update the weights
             gradients = tape.gradient(loss, model.trainable_variables)
@@ -352,13 +352,14 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             train_accuracy_metric.update_state(labels, predictions)
             train_auc_metric.update_state(labels, predictions)
 
-        def test_step(inputs, labels):
+        def test_step(inputs, labels, kl_weight):
             labels = tf.reshape(tf.cast(labels['particletype'], dtype=tf.float32), (-1, 1))
             predictions = model(inputs)
             neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
             kl_divergence = sum(model.losses) * kl_weight
             loss = neg_log_likelihood + kl_divergence
 
+            # update the metrics
             val_total_loss_metric.update_state(loss)
             val_kl_divergence_metric.update_state(kl_divergence)
             val_accuracy_metric.update_state(labels, predictions)
@@ -370,6 +371,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             print(f'Beginning training - Epoch: {epoch+1}')
             print('')
             for batch_idx, (inputs, labels) in enumerate(training_data):
+
                 t.assign_add(1.0)
 
                 if ANNEAL_KL:
@@ -377,10 +379,8 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                         kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
                         kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
                     else:
-                        kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
                         kl_weight = 2**(-t)
                 else:
-                    kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
                     kl_weight = 1 / num_training_examples
 
                 train_step(inputs, labels, kl_weight)
@@ -396,11 +396,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     print(f'Epoch: {epoch+1} - Step: {batch_idx}/{training_steps_per_epoch}')
                     print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     print(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
-                    #print(f'Current KL weight: {kl_weight.numpy:.10f}')
-                    print(f't:{t.numpy()}')
-                    print(f'kl regularizer: {kl_regularizer.numpy():.10f}')
-                    print(f'kl weight:{kl_weight.numpy():.10f}')
-
+                    print(f'Current KL weight: {kl_weight.numpy:.10f}')
                     print('')
 
                     train_total_loss_metric.reset_states()
@@ -413,7 +409,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             print('')
             print(f'Beginning validation - Epoch: {epoch+1}')
             for inputs, labels in validation_data:
-                test_step(inputs, labels)
+                test_step(inputs, labels, kl_weight)
 
             mean_total_loss = val_total_loss_metric.result().numpy()
             mean_kl_divergence = val_kl_divergence_metric.result().numpy()
