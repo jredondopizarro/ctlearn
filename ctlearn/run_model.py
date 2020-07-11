@@ -346,7 +346,8 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         def train_step(inputs, labels):
             with tf.GradientTape() as tape:
                 predictions = model(inputs, training=True)
-                neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
+                # neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
+                neg_log_likelihood = tf.keras.losses.binary_crossentropy(labels, predictions)
                 kl_divergence = sum(model.losses) * kl_weight
                 loss = neg_log_likelihood + kl_divergence
 
@@ -360,7 +361,8 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
 
         def test_step(inputs, labels):
             predictions = model(inputs)
-            neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
+            #neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
+            neg_log_likelihood = tf.keras.losses.binary_crossentropy(labels, predictions)
             kl_divergence = sum(model.losses) * kl_weight
             loss = neg_log_likelihood + kl_divergence
 
@@ -372,7 +374,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         for epoch in range(params['training']['num_epochs']):
             print(f'Epoch: {epoch+1}')
 
-            print(f'Beginning training - Epoch: {epoch}')
+            print(f'Beginning training - Epoch: {epoch+1}')
             for batch_idx, (inputs, labels) in enumerate(training_data):
 
                 train_step(inputs, labels)
