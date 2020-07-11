@@ -396,7 +396,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     print(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
                     print(f'Current KL weight: {kl_weight:.10f}')
-                    print(f'Steps per second: {1/step_time:.3f} - Aprox. remaining time: '
+                    print(f'Steps per second: {1/step_time:.3f} - Aprox. remaining time to finish epoch: '
                           f'{(training_steps_per_epoch-batch_idx)/step_time:.2f} s')
                     print('')
 
