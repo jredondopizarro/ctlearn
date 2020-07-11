@@ -344,7 +344,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
 
         #@tf.function
         def train_step(inputs, labels):
-            labels = labels['particletype']
+            labels = tf.cast(labels['particletype'], dtype=tf.float32)
             with tf.GradientTape() as tape:
                 predictions = model(inputs, training=True)
                 print(predictions)
