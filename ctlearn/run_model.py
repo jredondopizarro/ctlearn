@@ -330,8 +330,6 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         #     kl_weight = 1 / num_training_examples
 
         t = tf.Variable(0.0)
-        kl_regularizer = tf.Variable(t / (KL_ANNEALING * num_training_examples / batch_size))
-        kl_weight = tf.Variable(1 / num_training_examples * tf.minimum(1.0, kl_regularizer))
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE,
                                              epsilon=EPSILON)
@@ -381,9 +379,12 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             print(f'Beginning training - Epoch: {epoch+1}')
             print('')
             for batch_idx, (inputs, labels) in enumerate(training_data):
+                t.assign_add(1.0)
+                kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
+                kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
 
                 train_step(inputs, labels, kl_weight)
-                t.assign_add(1.0)
+
 
                 if batch_idx % LOG_FREQ == 0:
                     mean_total_loss = train_total_loss_metric.result().numpy()
