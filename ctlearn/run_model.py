@@ -373,8 +373,9 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
 
         for epoch in range(params['training']['num_epochs']):
             print(f'Beginning epoch: {epoch+1}')
-
+            print('')
             print(f'Beginning training - Epoch: {epoch+1}')
+            print('')
             for batch_idx, (inputs, labels) in enumerate(training_data):
 
                 start = time.perf_counter()
@@ -389,6 +390,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     mean_accuracy = train_accuracy_metric.result().numpy()
                     mean_auc = train_auc_metric.result().numpy()
 
+                    print('')
                     print(f'Epoch: {epoch+1}')
                     print(f'Step: {batch_idx}')
                     print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
@@ -396,6 +398,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     print(f'Current KL weight: {kl_weight:.10f}')
                     print(f'Steps per second: {1/step_time}')
                     print(f'Aprox. remaining time: {(training_steps_per_epoch-batch_idx)/step_time} s')
+                    print('')
 
                     train_total_loss_metric.reset_states()
                     train_kl_divergence_metric.reset_states()
@@ -404,6 +407,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
 
             print(f'Ending training - Epoch: {epoch+1}')
 
+            print('')
             print(f'Beginning validation - Epoch: {epoch+1}')
             for inputs, labels in validation_data:
                 test_step(inputs, labels)
@@ -413,9 +417,11 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             mean_accuracy = val_accuracy_metric.result().numpy()
             mean_auc = val_auc_metric.result().numpy()
 
+            print('')
             print(f'Epoch: {epoch + 1}')
             print(f'Val total loss: {mean_total_loss:.3f}. Val KL div: {mean_kl_divergence:.5f}')
             print(f'Val accuracy: {mean_accuracy:.3f}. Val auc: {mean_auc:.3f}')
+            print('')
 
             val_total_loss_metric.reset_states()
             val_kl_divergence_metric.reset_states()
@@ -423,7 +429,9 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             val_auc_metric.reset_states()
 
             print(f'Ending validation - Epoch: {epoch+1}')
+            print('')
             print("Finished epoch")
+            print('')
 
         model.save(model_dir + '/ctlearn_model.h5')
 
