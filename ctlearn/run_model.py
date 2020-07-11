@@ -344,13 +344,13 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
 
         @tf.function
         def train_step(inputs, labels):
-            labels = tf.cast(labels['particletype'], dtype=tf.float32)
+            labels = tf.reshape(tf.cast(labels['particletype'], dtype=tf.float32), (-1, 1))
             with tf.GradientTape() as tape:
                 predictions = model(inputs, training=True)
                 neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
                 kl_divergence = sum(model.losses) * kl_weight
                 loss = neg_log_likelihood + kl_divergence
-
+            # update the weights
             gradients = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
             # update the metrics
@@ -360,7 +360,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             train_auc_metric.update_state(labels, predictions)
 
         def test_step(inputs, labels):
-            labels = labels['particletype']
+            labels = tf.reshape(tf.cast(labels['particletype'], dtype=tf.float32), (-1, 1))
             predictions = model(inputs)
             neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
             kl_divergence = sum(model.losses) * kl_weight
