@@ -396,10 +396,10 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     print(f'Epoch: {epoch+1} - Step: {batch_idx}/{training_steps_per_epoch}')
                     print(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     print(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
-                    #print(f'Current KL weight: {kl_weight:.10f}')
-                    print(f't:{t.value()}')
-                    print(f'kl regularizer: {kl_regularizer.value():.10f}')
-                    print(f'kl weight:{kl_weight.value():.10f}')
+                    #print(f'Current KL weight: {kl_weight.numpy:.10f}')
+                    print(f't:{t.numpy()}')
+                    print(f'kl regularizer: {kl_regularizer.numpy():.10f}')
+                    print(f'kl weight:{kl_weight.numpy():.10f}')
 
                     print('')
 
