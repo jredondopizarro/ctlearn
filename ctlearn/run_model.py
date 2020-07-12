@@ -322,8 +322,6 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                 t = tf.Variable(0.0)
             else:
                 t = tf.Variable(1.0)
-        else:
-            t = tf.Variable(1.0) # no sirve para nada en este caso
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE,
                                              epsilon=EPSILON)
@@ -381,9 +379,9 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             logger.info(f'Beginning training')
             for batch_idx, (inputs, labels) in enumerate(training_data):
 
-                t.assign_add(1.0)
-
                 if ANNEAL_KL:
+                    t.assign_add(1.0)
+
                     if not ALTERNATIVE_ANNEALING:
                         kl_regularizer = t / (KL_ANNEALING * num_training_examples / batch_size)
                         kl_weight = 1 / num_training_examples * tf.minimum(1.0, kl_regularizer)
@@ -406,7 +404,10 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     logger.info(f'Epoch: {epoch+1} - Step: {batch_idx}/{training_steps_per_epoch}')
                     logger.info(f'Train total loss: {mean_total_loss:.3f}. Train KL div: {mean_kl_divergence:.5f}')
                     logger.info(f'Train accuracy: {mean_accuracy:.3f}. Train auc: {mean_auc:.3f}')
-                    logger.info(f'Current KL weight: {kl_weight.numpy():.10f}')
+                    if ANNEAL_KL:
+                        logger.info(f'Current KL weight: {kl_weight.numpy():.10f}')
+                    else:
+                        logger.info(f'Current KL weight: {kl_weight:.10f}')
 
                     train_total_loss_metric.reset_states()
                     train_kl_divergence_metric.reset_states()
