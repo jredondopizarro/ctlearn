@@ -13,6 +13,7 @@ import yaml
 import time
 import tensorflow as tf
 from tensorflow.keras import backend as K
+import tensorflow_probability as tfp
 
 from dl1_data_handler.reader import DL1DataReader
 from ctlearn.data_loader import *
@@ -30,6 +31,8 @@ LEARNING_RATE = 0.00005
 EPSILON = 1.0e-8
 LOG_FREQ = 50
 
+# if ANNEAL_KL is False, whether to weight the KL term using num_training_examples or training_steps_per_epoch
+WEIGHT_NUM_TRAINING_EXAMPLES = True
 # whether to anneal the KL divergence term
 ANNEAL_KL = True
 # epochs to anneal the KL term (anneals from 0 to 1)
@@ -339,8 +342,10 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
         def train_step(inputs, labels, kl_weight):
             labels = tf.reshape(tf.cast(labels['particletype'], dtype=tf.float32), (-1, 1))
             with tf.GradientTape() as tape:
-                predictions = model(inputs, training=True)
-                neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
+                logits = model(inputs, training=True)
+                labels_distribution = tfp.distributions.Bernoulli(logits=logits)
+                neg_log_likelihood = -tf.reduce_mean(labels_distribution.log_prob(labels))
+                # neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
                 kl_divergence = sum(model.losses) * kl_weight
                 loss = neg_log_likelihood + kl_divergence
 
@@ -348,6 +353,7 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
             gradients = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
             # update the metrics
+            predictions = tf.cast(logits > 0, dtype=tf.int32)
             train_total_loss_metric.update_state(loss)
             train_kl_divergence_metric.update_state(kl_divergence)
             train_accuracy_metric.update_state(labels, predictions)
@@ -355,12 +361,15 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
 
         def test_step(inputs, labels, kl_weight):
             labels = tf.reshape(tf.cast(labels['particletype'], dtype=tf.float32), (-1, 1))
-            predictions = model(inputs)
-            neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
+            logits = model(inputs)
+            labels_distribution = tfp.distributions.Bernoulli(logits=logits)
+            neg_log_likelihood = -tf.reduce_mean(labels_distribution.log_prob(labels))
+            # neg_log_likelihood = K.sum(K.binary_crossentropy(labels, predictions), axis=-1)
             kl_divergence = sum(model.losses) * kl_weight
             loss = neg_log_likelihood + kl_divergence
 
             # update the metrics
+            predictions = tf.cast(logits > 0, dtype=tf.int32)
             val_total_loss_metric.update_state(loss)
             val_kl_divergence_metric.update_state(kl_divergence)
             val_accuracy_metric.update_state(labels, predictions)
@@ -381,7 +390,10 @@ def run_model_tf(config, mode="train", debug=False, log_to_file=False, multiple_
                     else:
                         kl_weight = 2**(-t)
                 else:
-                    kl_weight = 1 / num_training_examples
+                    if WEIGHT_NUM_TRAINING_EXAMPLES:
+                        kl_weight = 1 / num_training_examples
+                    else:
+                        kl_weight = 1 / training_steps_per_epoch
 
                 train_step(inputs, labels, kl_weight)
 
