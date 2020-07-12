@@ -27,7 +27,7 @@ from ctlearn.utils import *
 
 
 # tf hyperparameters:
-LEARNING_RATE = 0.00005
+LEARNING_RATE = 0.0001
 EPSILON = 1.0e-8
 LOG_FREQ = 50
 
